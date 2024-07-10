@@ -61,6 +61,26 @@ def process_text(text):
 
     return text
 
+class GCN():
+    def __init__(self) -> None:
+        pass
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        # _min = np.min(x)
+        # _max = np.max(x)
+        _min = x.min()
+        _max = x.max()
+        _x = (x - _min) / (_max - _min)
+        return _x
+
+
+class ZCAWhitning():
+    def __init__(self, epsilon=1e-4, device="cuda") -> None:
+        self.epsilon = epsilon
+        self.device = device
+
+    def fit(self, images):
+        pass
 
 # 1. データローダーの作成
 class VQADataset(Dataset):
@@ -369,7 +389,8 @@ def main():
     # dataloader / model
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        GCN(),
     ])
     train_dataset = VQADataset(df_path="./data/train.json", image_dir="./data/train", transform=transform)
     test_dataset = VQADataset(df_path="./data/valid.json", image_dir="./data/valid", transform=transform, answer=False)

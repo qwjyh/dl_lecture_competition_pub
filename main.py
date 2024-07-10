@@ -8,6 +8,7 @@ import numpy as np
 import pandas
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset
 import torchvision
 from torchvision import transforms
 
@@ -62,7 +63,7 @@ def process_text(text):
 
 
 # 1. データローダーの作成
-class VQADataset(torch.utils.data.Dataset):
+class VQADataset(Dataset):
     def __init__(self, df_path, image_dir, transform=None, answer=True):
         self.transform = transform  # 画像の前処理
         self.image_dir = image_dir  # 画像ファイルのディレクトリ
@@ -310,7 +311,7 @@ class VQAModel(nn.Module):
 
 
 # 4. 学習の実装
-def train(model, dataloader, optimizer, criterion, device):
+def train(model: nn.Module, dataloader: DataLoader, optimizer, criterion, device):
     model.train()
 
     total_loss = 0
@@ -319,6 +320,7 @@ def train(model, dataloader, optimizer, criterion, device):
 
     start = time.time()
     for image, question, answers, mode_answer in dataloader:
+        # print(f"{type(image)=},{type(answers)=},{type(mode_answer)=},{type(question)=},")
         image, question, answer, mode_answer = \
             image.to(device), question.to(device), answers.to(device), mode_answer.to(device)
 
@@ -362,6 +364,7 @@ def main():
     # deviceの設定
     set_seed(42)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"{device=}")
 
     # dataloader / model
     transform = transforms.Compose([
@@ -372,8 +375,8 @@ def main():
     test_dataset = VQADataset(df_path="./data/valid.json", image_dir="./data/valid", transform=transform, answer=False)
     test_dataset.update_dict(train_dataset)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
     model = VQAModel(vocab_size=len(train_dataset.question2idx)+1, n_answer=len(train_dataset.answer2idx)).to(device)
 

@@ -204,6 +204,8 @@ class BasicBlock(nn.Module):
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
         self.bn2 = nn.BatchNorm2d(out_channels)
+        # self.conv3 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+        # self.bn3 = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU(inplace=True)
 
         self.shortcut = nn.Sequential()
@@ -217,6 +219,7 @@ class BasicBlock(nn.Module):
         residual = x
         out = self.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
+        # out = self.bn3(self.conv3(out))
 
         out += self.shortcut(residual)
         out = self.relu(out)
@@ -236,6 +239,8 @@ class BottleneckBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.conv3 = nn.Conv2d(out_channels, out_channels * self.expansion, kernel_size=1, stride=1)
         self.bn3 = nn.BatchNorm2d(out_channels * self.expansion)
+        # self.conv4 = nn.Conv2d(out_channels, out_channels * self.expansion, kernel_size=1, stride=1)
+        # self.bn4 = nn.BatchNorm2d(out_channels * self.expansion)
         self.relu = nn.ReLU(inplace=True)
 
         self.shortcut = nn.Sequential()
@@ -250,6 +255,7 @@ class BottleneckBlock(nn.Module):
         out = self.relu(self.bn1(self.conv1(x)))
         out = self.relu(self.bn2(self.conv2(out)))
         out = self.bn3(self.conv3(out))
+        # out = self.bn4(self.conv4(out))
 
         out += self.shortcut(residual)
         out = self.relu(out)
@@ -390,7 +396,7 @@ def main():
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        GCN(),
+        # GCN(),
     ])
     train_dataset = VQADataset(df_path="./data/train.json", image_dir="./data/train", transform=transform)
     test_dataset = VQADataset(df_path="./data/valid.json", image_dir="./data/valid", transform=transform, answer=False)

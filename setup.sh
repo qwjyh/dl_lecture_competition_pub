@@ -19,7 +19,8 @@ git clone https://github.com/qwjyh/dl_lecture_competition_pub.git
 
 git config --global user.email "urataw421@gmail.com"
 git config --global user.name qwjyh
-# cd dl_lecture_competition_pub
+cd dl_lecture_competition_pub
+pip install transformers
 # cd data
 # curl "https://drive.google.com/file/d/1VRc_ERfP2OUY_t7ppkMRxn-ZFHc_6tux/view?usp=drive_link" --output train.json
 # curl "https://drive.google.com/file/d/1vr8PnhaDbvZA0DJvz-f2i7qnci742F0V/view?usp=drive_link" --output valid.json

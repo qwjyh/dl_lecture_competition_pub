@@ -11,6 +11,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import torchvision
 from torchvision import transforms
+from transformers import BertTokenizer
+from transformers.models.bert.tokenization_bert import BertTokenizer
 
 
 def set_seed(seed):
@@ -22,6 +24,7 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+tokenizer: BertTokenizer = BertTokenizer.from_pretrained("google-bert/bert-base-uncased")
 
 def process_text(text):
     # lowercase
@@ -105,6 +108,10 @@ class VQADataset(Dataset):
                     self.question2idx[word] = len(self.question2idx)
         self.idx2question = {v: k for k, v in self.question2idx.items()}  # 逆変換用の辞書(question)
 
+        # 質問の分散表現
+        self.question_tokens = tokenizer(list(self.df["question"]), padding=True, return_tensors='pt')
+        self.question_token_length = len(self.question_tokens['input_ids'][0])
+
         if self.answer:
             # 回答に含まれる単語を辞書に追加
             for answers in self.df["answers"]:
@@ -128,6 +135,9 @@ class VQADataset(Dataset):
         self.answer2idx = dataset.answer2idx
         self.idx2question = dataset.idx2question
         self.idx2answer = dataset.idx2answer
+        # 訓練データに合わせた長さでtokenize
+        self.question_token_length = dataset.question_token_length
+        self.question_tokens = tokenizer(list(self.df["question"]), padding='max_length', max_length=dataset.question_token_length, return_tensors='pt')
 
     def __getitem__(self, idx):
         """
@@ -150,7 +160,8 @@ class VQADataset(Dataset):
             10人の回答者の回答の中で最頻値の回答のid
         """
         image = Image.open(f"{self.image_dir}/{self.df['image'][idx]}")
-        image = self.transform(image)
+        if self.transform is not None:
+            image = self.transform(image)
         question = np.zeros(len(self.idx2question) + 1)  # 未知語用の要素を追加
         question_words = self.df["question"][idx].split(" ")
         for word in question_words:
@@ -159,14 +170,15 @@ class VQADataset(Dataset):
             except KeyError:
                 question[-1] = 1  # 未知語
 
+
         if self.answer:
             answers = [self.answer2idx[process_text(answer["answer"])] for answer in self.df["answers"][idx]]
             mode_answer_idx = mode(answers)  # 最頻値を取得（正解ラベル）
 
-            return image, torch.Tensor(question), torch.Tensor(answers), int(mode_answer_idx)
+            return image, self.question_tokens['input_ids'][idx], torch.Tensor(answers), int(mode_answer_idx)
 
         else:
-            return image, torch.Tensor(question)
+            return image, self.question_tokens['input_ids'][idx]
 
     def __len__(self):
         return len(self.df)
@@ -319,6 +331,7 @@ class VQAModel(nn.Module):
         super().__init__()
         self.resnet = ResNet18()
         self.text_encoder = nn.Linear(vocab_size, 512)
+        print(f"{self.text_encoder=}")
 
         self.fc = nn.Sequential(
             nn.Linear(1024, 512),
@@ -327,6 +340,7 @@ class VQAModel(nn.Module):
         )
 
     def forward(self, image, question):
+        print(f"{question=}, {question.size()=}")
         image_feature = self.resnet(image)  # 画像の特徴量
         question_feature = self.text_encoder(question)  # テキストの特徴量
 
@@ -347,6 +361,7 @@ def train(model: nn.Module, dataloader: DataLoader, optimizer, criterion, device
     start = time.time()
     for image, question, answers, mode_answer in dataloader:
         # print(f"{type(image)=},{type(answers)=},{type(mode_answer)=},{type(question)=},")
+        print(f"{(question)=},")
         image, question, answer, mode_answer = \
             image.to(device), question.to(device), answers.to(device), mode_answer.to(device)
 
@@ -405,7 +420,8 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-    model = VQAModel(vocab_size=len(train_dataset.question2idx)+1, n_answer=len(train_dataset.answer2idx)).to(device)
+    print(f"{(train_dataset.question_tokens['input_ids'][0])}")
+    model = VQAModel(vocab_size=len(train_dataset.question_tokens['input_ids'][0]), n_answer=len(train_dataset.answer2idx)).to(device)
 
     # optimizer / criterion
     num_epoch = 20

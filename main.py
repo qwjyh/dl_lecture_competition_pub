@@ -175,10 +175,10 @@ class VQADataset(Dataset):
             answers = [self.answer2idx[process_text(answer["answer"])] for answer in self.df["answers"][idx]]
             mode_answer_idx = mode(answers)  # 最頻値を取得（正解ラベル）
 
-            return image, self.question_tokens['input_ids'][idx], torch.Tensor(answers), int(mode_answer_idx)
+            return image, self.question_tokens['input_ids'][idx].float(), torch.Tensor(answers), int(mode_answer_idx)
 
         else:
-            return image, self.question_tokens['input_ids'][idx]
+            return image, self.question_tokens['input_ids'][idx].float()
 
     def __len__(self):
         return len(self.df)
@@ -331,7 +331,6 @@ class VQAModel(nn.Module):
         super().__init__()
         self.resnet = ResNet18()
         self.text_encoder = nn.Linear(vocab_size, 512)
-        print(f"{self.text_encoder=}")
 
         self.fc = nn.Sequential(
             nn.Linear(1024, 512),
@@ -340,7 +339,6 @@ class VQAModel(nn.Module):
         )
 
     def forward(self, image, question):
-        print(f"{question=}, {question.size()=}")
         image_feature = self.resnet(image)  # 画像の特徴量
         question_feature = self.text_encoder(question)  # テキストの特徴量
 
@@ -361,7 +359,6 @@ def train(model: nn.Module, dataloader: DataLoader, optimizer, criterion, device
     start = time.time()
     for image, question, answers, mode_answer in dataloader:
         # print(f"{type(image)=},{type(answers)=},{type(mode_answer)=},{type(question)=},")
-        print(f"{(question)=},")
         image, question, answer, mode_answer = \
             image.to(device), question.to(device), answers.to(device), mode_answer.to(device)
 
@@ -420,7 +417,6 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-    print(f"{(train_dataset.question_tokens['input_ids'][0])}")
     model = VQAModel(vocab_size=len(train_dataset.question_tokens['input_ids'][0]), n_answer=len(train_dataset.answer2idx)).to(device)
 
     # optimizer / criterion
